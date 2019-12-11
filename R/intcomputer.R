@@ -78,17 +78,22 @@ op8 <- function(program, pointer, instructions) {
 }
 
 
-intcomputer <- function(program, input) {
+intcomputer <- function(program, inputs) {
   orig_prog <- program
   pointer <- 1
+  input_pointer <- 1
   for (i in 1:300) {
     instructions <- instr_codes(program[pointer])
     #print(instructions)
     opcode <- instructions[4]*10 + instructions[5]
-    if (opcode == 3) op3(program, input, pointer) %->% c(program, pointer)
+    if (opcode == 3) {
+      op3(program, inputs[input_pointer], pointer) %->% c(program, pointer)
+      input_pointer <- input_pointer + 1
+    }
     if (opcode == 4) {
-         op4(program, pointer, instructions) %->% c(output, pointer); 
-         cat('out ', output, '\n')}
+      op4(program, pointer, instructions) %->% c(output, pointer); 
+      cat('out ', output, '\n')
+    }
     if (opcode == 1) op1(program, pointer, instructions) %->% c(program, pointer)
     if (opcode == 2) op2(program, pointer, instructions) %->% c(program, pointer)
     if (opcode == 5) op5(program, pointer, instructions) %->% c(program, pointer)
@@ -97,13 +102,5 @@ intcomputer <- function(program, input) {
     if (opcode == 8) op8(program, pointer, instructions) %->% c(program, pointer)
     if (opcode == 99) break
   }
-  return(output)
+  return(list(output, program))
 }
-
-source('R/intcomputer.R')
-program <- readr::read_csv("data/input day5.csv") %>% 
-  pull(program)
-
-intcomputer(program, input = 1)[[1]] 
-
-intcomputer(program, input = 5)[[1]]

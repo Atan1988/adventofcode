@@ -78,21 +78,20 @@ op8 <- function(program, pointer, instructions) {
 }
 
 
-intcomputer <- function(program, inputs) {
+intcomputer <- function(program, inputs, pointer = 1, input_pointer = 1, done = 0) {
   orig_prog <- program
-  pointer <- 1
-  input_pointer <- 1
-  for (i in 1:300) {
+  for (i in 1:3000) {
     instructions <- instr_codes(program[pointer])
     #print(instructions)
     opcode <- instructions[4]*10 + instructions[5]
     if (opcode == 3) {
+      if (input_pointer > length(inputs)) {done <-0; break}
       op3(program, inputs[input_pointer], pointer) %->% c(program, pointer)
       input_pointer <- input_pointer + 1
     }
     if (opcode == 4) {
       op4(program, pointer, instructions) %->% c(output, pointer); 
-      cat('out ', output, '\n')
+      #cat('out ', output, '\n')
     }
     if (opcode == 1) op1(program, pointer, instructions) %->% c(program, pointer)
     if (opcode == 2) op2(program, pointer, instructions) %->% c(program, pointer)
@@ -100,7 +99,7 @@ intcomputer <- function(program, inputs) {
     if (opcode == 6) op6(program, pointer, instructions) %->% c(program, pointer)
     if (opcode == 7) op7(program, pointer, instructions) %->% c(program, pointer)
     if (opcode == 8) op8(program, pointer, instructions) %->% c(program, pointer)
-    if (opcode == 99) break
+    if (opcode == 99) {done <- 1; break}
   }
-  return(list(output, program))
+  return(list(output, program, pointer, input_pointer, done))
 }

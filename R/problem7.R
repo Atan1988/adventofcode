@@ -35,16 +35,33 @@ program <- c(3,26,1001,26,-4,26,3,27,1002,27,2,27,1,27,26,
              27,4,27,1001,28,-1,28,1005,28,6,99,0,0,5)
 sequence <- c(9,8,7,6,5)
 
+one_run <- function(programs, sequence, inputs, pointers, input_pointers, dones) {
+  n_seq <- length(sequence)
+  for (i in 1:n_seq ) {
+    input_pt <- (i + 1) %% n_seq 
+    if (input_pt == 0) input_pt <- n_seq
+    c(inputs[[input_pt]][length(inputs[[input_pt]])+1], 
+      programs[[i]], pointers[i], input_pointers[i], 
+      dones[i]) %<-% intcomputer(programs[[i]], 
+                      inputs = inputs[[i]], pointer = pointers[i], 
+                      input_pointer = input_pointers[i],
+                      done = dones[i])
+  }
+  return(list(programs, sequence, inputs, pointers, input_pointers, dones))
+}
+
 amplifiers_boost <- function(program, sequence) {
   n_seq <- length(sequence)
   programs <- 1:n_seq  %>% purrr::map(~identity(program))
-  inputs <- rep(0, n_seq )
-  
-  for (i in 1:n_seq ) {
-    input_pt <- (i - 1) %% n_seq 
-    if (input_pt == 0) input_pt <- n_seq
-    c(inputs[i], programs[[i]]) %<-% intcomputer(programs[[i]], 
-                                          inputs = c(sequence[i], inputs[input_pt]))
+  inputs <- sequence %>% purrr::map(~.); inputs[[1]][2] <- 0
+  pointers <- rep(1, n_seq)
+  input_pointers <- rep(1, n_seq)
+  dones <- rep(0, n_seq)
+  c(programs, sequence, inputs, pointers, input_pointers, dones) %<-% 
+    one_run(programs, sequence, inputs, pointers, input_pointers, dones)
+  print(inputs); tibble::tibble(pointers, input_pointers, dones)
+  for (j in 1:300) {
+      c(inputs, programs) %<-% sub_run(programs, sequence, inputs)
   }
   return(list(programs, inputs))
 }

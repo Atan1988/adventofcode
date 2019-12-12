@@ -104,6 +104,6 @@ source('R/intcomputer.R')
 program <- readr::read_csv("data/input day5.csv") %>% 
   pull(program)
 
-intcomputer(program, input = 1)[[1]] 
+intcomputer(program, inputs = 1)[[1]] 
 
-intcomputer(program, input = 5)[[1]]
+intcomputer(program, inputs = 5)[[1]]

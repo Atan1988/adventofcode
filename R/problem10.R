@@ -28,13 +28,19 @@ ast_pair_df1 <- ast_pair_df %>%
   inner_join(ast_df, by = c('id2' = 'id')) %>% 
   mutate(h_dist = col.y - col.x, 
          h_dist_sign = sign(h_dist),
+         v_dist = row.y - row.x,
          dist = sqrt((row.y - row.x)^2 + (col.y - col.x)^2),
          slope = (row.y - row.x)/(col.y - col.x)) %>% 
   group_by(id1, slope, h_dist_sign) %>% 
-  mutate(ct = n()) %>% arrange(id1, slope, h_dist_sign) %>% 
+  mutate(ct = n()) %>% arrange(id1, slope, h_dist_sign) 
+
+ast_pair_df2 <- ast_pair_df1 %>% 
   filter(dist == min(dist))
 
-ast_pair_df1 %>% group_by(id1, col.x, row.x) %>% tally() %>% 
+ast_pair_df2 %>% group_by(id1, col.x, row.x) %>% tally() %>% 
   ungroup() %>% filter(n == max(n))
 
 
+#part2
+laser_df <- ast_pair_df1 %>% filter(id1 == 981)
+laser_df %>% mutate(dg = asin(v_dist/dist))

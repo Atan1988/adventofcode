@@ -27,7 +27,7 @@ chk_df <- 1:length(sequences) %>%
     tibble(seq = num, out = amplifiers(program, sequences[[num]])[5])
   })
 
-sequences[[chk_df %>% filter(out == max(out)) %>% pull(num)]]
+sequences[[chk_df %>% filter(out == max(out)) %>% pull(seq)]]
 chk_df %>% filter(out == max(out)) %>% pull(out)
 
 #part2 
@@ -36,12 +36,12 @@ one_run <- function(programs, sequence, inputs, pointers, input_pointers, dones)
   for (i in 1:n_seq ) {
     input_pt <- (i + 1) %% n_seq 
     if (input_pt == 0) input_pt <- n_seq
-    c(inputs[[input_pt]][length(inputs[[input_pt]])+1], 
-      programs[[i]], pointers[i], input_pointers[i], 
-      dones[i]) %<-% intcomputer(programs[[i]], 
+    c(out, programs[[i]], pointers[i], input_pointers[i], 
+      dones[i], rbase) %<-% intcomputer(programs[[i]], 
                       inputs = inputs[[i]], pointer = pointers[i], 
                       input_pointer = input_pointers[i],
                       done = dones[i])
+    inputs[[input_pt]] <- c(inputs[[input_pt]], out)
   }
   return(list(programs, sequence, inputs, pointers, input_pointers, dones))
 }

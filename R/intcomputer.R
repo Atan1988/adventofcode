@@ -1,6 +1,11 @@
 library(dplyr)
 library(zeallot)
 
+get_digts <- function(x) {
+  n <- log10(x) %>% ceiling()
+  x %% 10^seq(n, 1, -1) %/% 10^seq(n - 1, 0, -1) 
+}
+
 instr_codes <- function(x) {
   x %% 10^seq(5, 1, -1) %/% 10^seq(4, 0, -1) 
 }

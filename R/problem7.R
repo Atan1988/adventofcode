@@ -31,10 +31,6 @@ sequences[[chk_df %>% filter(out == max(out)) %>% pull(num)]]
 chk_df %>% filter(out == max(out)) %>% pull(out)
 
 #part2 
-program <- c(3,26,1001,26,-4,26,3,27,1002,27,2,27,1,27,26,
-             27,4,27,1001,28,-1,28,1005,28,6,99,0,0,5)
-sequence <- c(9,8,7,6,5)
-
 one_run <- function(programs, sequence, inputs, pointers, input_pointers, dones) {
   n_seq <- length(sequence)
   for (i in 1:n_seq ) {
@@ -57,13 +53,34 @@ amplifiers_boost <- function(program, sequence) {
   pointers <- rep(1, n_seq)
   input_pointers <- rep(1, n_seq)
   dones <- rep(0, n_seq)
-  c(programs, sequence, inputs, pointers, input_pointers, dones) %<-% 
-    one_run(programs, sequence, inputs, pointers, input_pointers, dones)
-  print(inputs); tibble::tibble(pointers, input_pointers, dones)
+ 
+  #print(inputs); tibble::tibble(pointers, input_pointers, dones)
   for (j in 1:300) {
-      c(inputs, programs) %<-% sub_run(programs, sequence, inputs)
+    c(programs, sequence, inputs, pointers, input_pointers, dones) %<-% 
+      one_run(programs, sequence, inputs, pointers, input_pointers, dones)
+    if (sum(dones) == n_seq) break
   }
   return(list(programs, inputs))
 }
 
+program <- c(3,52,1001,52,-5,52,3,53,1,52,56,54,1007,54,5,55,1005,55,26,1001,54,
+             -5,54,1105,1,12,1,53,54,53,1008,54,0,55,1001,55,1,55,2,53,55,53,4,
+             53,1001,56,-1,56,1005,56,6,99,0,0,0,0,10)
+sequence <- c(9,7,8,5,6)
 res <- amplifiers_boost(program, sequence)
+res[[2]][[1]] %>% .[length(.)]
+
+program <- readr::read_csv("data/input day7.csv") %>% pull(Program)
+sequences <- permn(seq(5, 9, 1))
+
+prog <- dplyr::progress_estimated(length(sequences))
+chk_df2 <- 1:length(sequences) %>% 
+  purrr::map_df(function(num) {
+    res <- tibble(seq = num, 
+                  out = (amplifiers_boost(program, 
+                    sequences[[num]])[[2]][[1]]) %>% .[length(.)])
+    prog$tick()$print()
+    return(res)
+  })
+
+chk_df2 %>% pull(out) %>% max()

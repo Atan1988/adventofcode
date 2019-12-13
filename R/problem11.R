@@ -2,7 +2,7 @@ library(dplyr)
 source('R/intcomputer.R')
 options("scipen"=100)
 
-direc <- pi/2
+
 change_direc <- function(direc, direc_input) {
   #0 for left, 1 for right
   if (direc_input == 0) return(direc + pi/2)
@@ -21,3 +21,6 @@ new_coord <- function(curr_coord, direc) {
 robot_program <- function(robot_state){
   
 }
+
+direc <- pi/2
+program <- readr::read_csv('data/input day11.csv') %>% pull(program)

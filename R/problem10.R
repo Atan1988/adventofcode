@@ -27,8 +27,8 @@ ast_pair_df1 <- ast_pair_df %>%
   inner_join(ast_df, by = c('id1' = 'id')) %>% 
   inner_join(ast_df, by = c('id2' = 'id')) %>% 
   mutate(h_dist = col.y - col.x, 
-         h_dist_sign = sign(h_dist),
-         v_dist = row.y - row.x,
+         h_dist_sign = ifelse(h_dist>=0, 1, -1),
+         v_dist = -(row.y - row.x),
          dist = sqrt((row.y - row.x)^2 + (col.y - col.x)^2),
          slope = (row.y - row.x)/(col.y - col.x)) %>% 
   group_by(id1, slope, h_dist_sign) %>% 
@@ -37,10 +37,24 @@ ast_pair_df1 <- ast_pair_df %>%
 ast_pair_df2 <- ast_pair_df1 %>% 
   filter(dist == min(dist))
 
-ast_pair_df2 %>% group_by(id1, col.x, row.x) %>% tally() %>% 
+best_df <- ast_pair_df2 %>% group_by(id1, col.x, row.x) %>% tally() %>% 
   ungroup() %>% filter(n == max(n))
+best_df
 
 
 #part2
-laser_df <- ast_pair_df1 %>% filter(id1 == 981)
-laser_df %>% mutate(dg = asin(v_dist/dist))
+laser_df <- ast_pair_df1 %>% filter(id1 == best_df$id1)
+laser_df1 <- laser_df %>% ungroup() %>% 
+  mutate(sort = round(v_dist/dist * h_dist_sign, 5)) %>% 
+  arrange(-h_dist_sign, -sort, dist) %>% 
+  group_by(h_dist_sign, sort) %>% 
+  mutate(laser_round = seq(1, n(), 1)) %>% 
+  arrange(laser_round, -h_dist_sign, -sort) %>% 
+  ungroup() %>% 
+  mutate(rank = seq(1, n(), 1))
+
+rows <- c(1, 2, 3, 10, 20, 50, 100, 199, 200, 201, 299)
+laser_df1[rows, ] %>% 
+  select(id2, col.y, row.y, rank) %>% 
+  mutate(answer = col.y * 100 + row.y)
+

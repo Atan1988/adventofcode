@@ -45,7 +45,7 @@ best_df
 #part2
 laser_df <- ast_pair_df1 %>% filter(id1 == best_df$id1)
 laser_df1 <- laser_df %>% ungroup() %>% 
-  mutate(sort = round(v_dist/dist * h_dist_sign, 5)) %>% 
+  mutate(sort = round(asin(v_dist/dist) * h_dist_sign, 10)) %>% 
   arrange(-h_dist_sign, -sort, dist) %>% 
   group_by(h_dist_sign, sort) %>% 
   mutate(laser_round = seq(1, n(), 1)) %>% 

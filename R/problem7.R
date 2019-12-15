@@ -37,7 +37,7 @@ one_run <- function(programs, sequence, inputs, pointers, input_pointers, dones)
     input_pt <- (i + 1) %% n_seq 
     if (input_pt == 0) input_pt <- n_seq
     c(out, programs[[i]], pointers[i], input_pointers[i], 
-      dones[i], rbase) %<-% intcomputer(programs[[i]], 
+      dones[i], rbase, i) %<-% intcomputer(programs[[i]], 
                       inputs = inputs[[i]], pointer = pointers[i], 
                       input_pointer = input_pointers[i],
                       done = dones[i])

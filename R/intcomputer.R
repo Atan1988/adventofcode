@@ -31,7 +31,7 @@ op3 <- function(program, input, pointer, instructions, rbase) {
   } else {
     program[program[pointer + 1] + 1] <- input
   }
- 
+  program <-  ifelse(is.na(program), 0, program)
   return(list(program, pointer = pointer + 2))
 }
 
@@ -43,6 +43,7 @@ op4 <- function(program, pointer, instructions, rbase) {
   } else {
     program[pointer + 1] -> output
   }
+  program <-  ifelse(is.na(program), 0, program)
   return(list(output, pointer = pointer + 2))
 }
 
@@ -50,24 +51,28 @@ op4 <- function(program, pointer, instructions, rbase) {
 op1 <- function(program, pointer, instructions, rbase = 0) {
   c(pars, params) %<-% int_parm_calc(program, pointer, instructions, rbase)
   program[params[3]+1] <- sum(params[1:2])
+  program <-  ifelse(is.na(program), 0, program)
   return(list(program, pointer = pointer + 4))
 }
 
 op2 <- function(program, pointer, instructions, rbase = 0) {
   c(pars, params) %<-% int_parm_calc(program, pointer, instructions, rbase)
   program[params[3]+1] <- prod(params[1:2])
+  program <-  ifelse(is.na(program), 0, program)
   return(list(program, pointer = pointer + 4))
 }
 
 op5 <- function(program, pointer, instructions, rbase = 0) {
   c(pars, params) %<-% int_parm_calc(program, pointer, instructions, rbase)
   if (params[1] != 0) pointer <- params[2] + 1 else pointer <- pointer + 3
+  program <-  ifelse(is.na(program), 0, program)
   return(list(program, pointer))
 }
 
 op6 <- function(program, pointer, instructions, rbase = 0) {
   c(pars, params) %<-% int_parm_calc(program, pointer, instructions, rbase)
   if (params[1] == 0) pointer <- params[2] + 1 else pointer <- pointer + 3
+  program <-  ifelse(is.na(program), 0, program)
   return(list(program, pointer))
 }
 
@@ -77,6 +82,7 @@ op7 <- function(program, pointer, instructions, rbase = 0) {
     program[params[3] + 1] <- 1 } else {
       program[params[3] + 1] <- 0 
     }
+  program <-  ifelse(is.na(program), 0, program)
   return(list(program, pointer = pointer + 4))  
 }
 
@@ -86,12 +92,14 @@ op8 <- function(program, pointer, instructions, rbase = 0) {
     program[params[3] + 1] <- 1 } else {
       program[params[3] + 1] <- 0 
     }
+  program <-  ifelse(is.na(program), 0, program)
   return(list(program, pointer = pointer + 4))  
 }
 
 op9 <- function(program, pointer, instructions, rbase = 0) {
   c(pars, params) %<-% int_parm_calc(program, pointer, instructions, rbase)
   rbase <- rbase + params[1]
+  program <-  ifelse(is.na(program), 0, program)
   return(list(program, pointer = pointer + 2, rbase))
 }
 

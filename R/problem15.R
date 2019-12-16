@@ -112,3 +112,34 @@ path_df %>% pull(steps) %>% max()
 plot_map(map, curr_pos = c(0, 0))
 
 #part 2
+program <- scan("data/input day15.txt",sep=",")
+set.seed(12345)
+map <- list()
+visited <- list('0,0' = 1)
+programs <- list('0,0' = program)
+curr_pos <- c(0, 0)
+i <- 1
+paths <- c('0,0')
+while (i <= 2000) {
+  res_list <- purrr::map(1:4, 
+                         ~intcomputer(program = program, inputs = ., 
+                                      input_pointer = 1))
+  out <- res_list %>% purrr::map_dbl(~.$outputs)
+  new_coords <- purrr::map(1:4, ~coord_adjust(curr_pos = curr_pos, .))
+  objs <- obj_detect(out)
+  map <- update_map(new_coords, objs, map)
+  programs <- update_programs(new_coords, res_list, programs)
+  
+  ids <- purrr::map_chr(new_coords, function(x) paste(x[1], x[2], sep = ','))
+  Vs <- visited[ids] %>% purrr::map(function(x)ifelse(is.null(x), 0, x)) %>% unlist()
+  options <- which(objs != "#")
+  least_v_options <- options[which(Vs[options]==min(Vs[options]))]
+  
+  next_mv <- sample_mv(least_v_options)
+  curr_pos <- new_coords[[next_mv]]; visited <- update_visited(visited, new_coords[[next_mv]])
+  paths[length(paths)+1] <- ids[next_mv]
+  program <- res_list[[next_mv]]$program
+  cat(i, '\r');i = i+1
+  if (2 %in% out) break
+  if ((visited %>% purrr::map_dbl(~ifelse(.>1, 1, 0)) %>% sum()) >= length(visited)) break
+}

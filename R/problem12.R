@@ -1,5 +1,6 @@
 library(dplyr)
 library(combinat)
+library(zeallot)
 
 
 update_vol <- function(pt1, pt2) {
@@ -18,8 +19,9 @@ upd_st <- function(test_state, n = 1) {
   prob_bar <- dplyr::progress_estimated(n)
   for (j in 1:n) {
     for (i in 1:nrow(iter_df)) {
-      c(test_state[[iter_df$V1[i]]], test_state[[iter_df$V2[i]]]) %<-%
-        update_vol(test_state[[iter_df$V1[i]]], test_state[[iter_df$V2[i]]])
+      res <- update_vol(test_state[[iter_df$V1[i]]], test_state[[iter_df$V2[i]]])
+      test_state[[iter_df$V1[i]]] <- res[[1]]
+      test_state[[iter_df$V2[i]]] <- res[[2]]
     }
     test_state <- purrr::map(test_state, 
                              function(pt){pt$pos <- pt$pos + pt$vol; return(pt)})
@@ -59,6 +61,25 @@ get_path <- function(upd_sts) {
   })
 }
 
+get_path_v <- function(upd_sts) {
+  get_one <- function(i) {
+    append(1:3 %>% purrr::map(~purrr::map_dbl(upd_sts, 
+                                              function(st) {st[[i]]$pos[.]})),
+           1:3 %>% purrr::map(~purrr::map_dbl(upd_sts, 
+                                              function(st) {st[[i]]$vol[.]}))) %>% 
+      as_tibble(.name_repair = make.names) %>% 
+      `colnames<-`(c('x', 'y', 'z', 'x1', 'y1', 'z1')) %>% 
+      mutate(step = seq(0, n()-1, 1), id = i)
+  }
+  tmp_df <- 1:4 %>% purrr::map_df(get_one) %>% arrange(step, id)%>% group_by(id) %>% 
+    mutate(dist = sqrt( (x - lag(x))^2 + (y-lag(y))^2 + (z-lag(z))^2 ))
+  
+  tmp_df %>% ungroup() %>% 
+    left_join(tmp_df %>% filter(is.na(dist)) %>% 
+                select(id, x0:=x, y0:=y, z0:=z), by = 'id') %>% 
+    mutate(dist_orig = sqrt( (x - x0)^2 + (y - y0)^2 + (z - z0)^2 ))
+}
+
 init_state <- list(
   list(pos = c(x=19, y=-10, z=7), 
        vol = c(x=0, y=0, z=0)), 
@@ -92,77 +113,87 @@ test_state2 <- list(
        vol = c(x=0, y=0, z=0))
 )
 
+tictoc::tic()
 test_sts <- upd_st(test_state, n = 2772)
+tictoc::toc()
 test_sts %>% .[[length(.)]] %>% print_st()
 test_sts %>% .[[length(.)]] %>% calc_energy()
- 
+
 tictoc::tic()
-test_sts_path <- get_path(test_sts)
+test_sts_path <- get_path_v(test_sts)
 tictoc::toc()
 
-test_sts_path1 <- test_sts_path %>% group_by(id) %>% 
-  mutate(dist = sqrt( (x - lag(x))^2 + (y-lag(y))^2 + (z-lag(z))^2 )) %>% 
-  left_join(test_sts_path1 %>% filter(is.na(dist)) %>% 
-              select(id, x0:=x, y0:=y, z0:=z), by = 'id') %>% 
-  mutate(dist_orig = sqrt( (x - x0)^2 + (y - y0)^2 + (z - z0)^2 ))
+x_align <- test_sts_path %>% 
+  group_by(step) %>% 
+  summarise(dist = sum(abs(x-x0)), vol = sum(abs(x1))) %>% 
+  filter(dist == 0, vol == 0) %>% pull(step) %>% .[2]
 
-df <- test_sts_path1  %>% filter(id == 4)
+y_align <- test_sts_path %>% 
+  group_by(step) %>% 
+  summarise(dist = sum(abs(y-y0)), vol = sum(abs(y1))) %>% 
+  filter(dist == 0, vol == 0) %>% pull(step) %>% .[2]
 
-df %>% filter(dist == 0)%>% mutate(chg = step - lag(step, default = 0))
+z_align <- test_sts_path %>% 
+  group_by(step) %>% 
+  summarise(dist = sum(abs(z-z0)), vol = sum(abs(z1))) %>% 
+  filter(dist == 0, vol == 0) %>% pull(step) %>% .[2]
 
-df$dist[-1] %>% table() %>% sort(decreasing = T)
-
-library("scatterplot3d")
-df1 <- df[1:10, ]
-scatterplot3d(x = df1$x, y = df1$y, z = df1$z)
-
-pt_df <- test_sts_path %>% filter(step <= 2, id == 1)
-
-test_sts_path %>% filter(id == 1, step <= 2)
-
-test_energy <- get_energy(test_sts)
-test_energy_per_step <- test_energy  %>% group_by(step) %>% 
-  summarise(tot = sum(total)) 
-
-test_energy_per_step %>% 
-  ggplot(aes(x = step, y = tot)) + geom_point()
+pracma::Lcm(pracma::Lcm(x_align, y_align), z_align)
 
 tictoc::tic()
-test_sts2 <- upd_st(test_state2, n = 200000)
+test_sts2 <- upd_st(test_state2, n = 50000)
 test_sts2 %>% .[[length(.)]] %>% print_st()
 test_sts2 %>% .[[length(.)]] %>% calc_energy()
 tictoc::toc()
 
 tictoc::tic()
-test_sts2_path <- get_path(test_sts2)
+test_sts2_path <- get_path_v(test_sts2)
 tictoc::toc()
 
-test_sts2_path1 <- test_sts2_path %>% group_by(id) %>% 
-  mutate(dist = sqrt( (x - lag(x))^2 + (y-lag(y))^2 + (z-lag(z))^2 ))
+x_align <- test_sts2_path %>% 
+  group_by(step) %>% 
+  summarise(dist = sum(abs(x-x0)), vol = sum(abs(x1))) %>% 
+  filter(dist == 0, vol == 0) %>% pull(step) %>% .[2]
 
-df <- test_sts2_path1  %>% filter(id == 1)
-df %>% filter(dist == 0)%>% mutate(chg = step - lag(step, default = 0))
+y_align <- test_sts2_path %>% 
+  group_by(step) %>% 
+  summarise(dist = sum(abs(y-y0)), vol = sum(abs(y1))) %>% 
+  filter(dist == 0, vol == 0) %>% pull(step) %>% .[2]
 
+z_align <- test_sts2_path %>% 
+  group_by(step) %>% 
+  summarise(dist = sum(abs(z-z0)), vol = sum(abs(z1))) %>% 
+  filter(dist == 0, vol == 0) %>% pull(step) %>% .[2]
 
-test_energy2 <- get_energy(test_sts2)
-test_energy_per_step2 <- test_energy2  %>% group_by(step) %>% 
-  summarise(tot = sum(total)) 
+pracma::Lcm(pracma::Lcm(x_align, y_align), z_align)
 
-test_energy_per_step2 %>% 
-  ggplot(aes(x = step, y = tot)) + geom_point()
+library(profvis)
 
-upd_sts <- upd_st(init_state, n = 50000)
+tictoc::tic()
+#profvis::profvis({
+  upd_sts <- upd_st(init_state, n = 500000)
+#})
+tictoc::toc()
 upd_sts %>% .[[1000]] %>% print_st()
 upd_sts %>% .[[1000]] %>% calc_energy()
 
-upd_sts_path <- 1:length(upd_sts) %>% purrr::map_df(function(i){
-  upd_sts[[i]] %>% print_st() %>% 
-    mutate(id = seq(1, 4,1), step= i-1)
-})
+tictoc::tic()
+upd_sts_path <- get_path_v(upd_sts)
+tictoc::toc()
 
-upd_energy <- get_energy(upd_sts)
-upd_energy_per_step <- upd_energy %>% group_by(step) %>% 
-  summarise(tot = sum(total))
+x_align <- upd_sts_path %>% 
+  group_by(step) %>% 
+  summarise(dist = sum(abs(x-x0)), vol = sum(abs(x1))) %>% 
+  filter(dist == 0, vol == 0) %>% pull(step) %>% .[2]
 
-upd_energy_per_step %>% 
-  ggplot(aes(x = step, y = tot)) + geom_point()
+y_align <- upd_sts_path %>% 
+  group_by(step) %>% 
+  summarise(dist = sum(abs(y-y0)), vol = sum(abs(y1))) %>% 
+  filter(dist == 0, vol == 0) %>% pull(step) %>% .[2]
+
+z_align <- upd_sts_path %>% 
+  group_by(step) %>% 
+  summarise(dist = sum(abs(z-z0)), vol = sum(abs(z1))) %>% 
+  filter(dist == 0, vol == 0) %>% pull(step) %>% .[2]
+
+pracma::Lcm(pracma::Lcm(x_align, y_align), z_align)

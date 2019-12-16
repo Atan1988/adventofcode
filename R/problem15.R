@@ -57,14 +57,25 @@ update_visited <- function(visited, new_coords){
   return(visited)
 }
 
+trim_path_df <- function(path_df) {
+  dup <- path_df %>% filter(ct>1) %>% select(x, y) %>% distinct()
+  
+  for (i in 1:nrow(dup)){
+    dup_stps <- path_df %>% filter(x == dup$x[i], y==dup$y[i]) %>% pull(steps)
+    if (length(dup_stps) > 1) path_df <- path_df %>% 
+        filter(!steps %in% seq((dup_stps[1] + 1), dup_stps[2], 1))
+  }
+  path_df %>% ungroup() %>% mutate(steps = seq(0, n()-1, 1))
+}
+
 program <- scan("data/input day15.txt",sep=",")
 set.seed(12345)
 map <- list()
-visited <- list('0, 0' = 1)
+visited <- list('0,0' = 1)
 programs <- list('0,0' = program)
 curr_pos <- c(0, 0)
 i <- 1
-
+paths <- c('0,0')
 while (i <= 2000) {
   res_list <- purrr::map(1:4, 
                          ~intcomputer(program = program, inputs = ., 
@@ -82,9 +93,30 @@ while (i <= 2000) {
   
   next_mv <- sample_mv(least_v_options)
   curr_pos <- new_coords[[next_mv]]; visited <- update_visited(visited, new_coords[[next_mv]])
+  paths[length(paths)+1] <- ids[next_mv]
   program <- res_list[[next_mv]]$program
   cat(i, '\r');i = i+1
   if (2 %in% out) break
 }
 
-plot_map(map, curr_pos)
+paths_tmp <- strsplit(paths, ',')
+path_df <- tibble(steps = seq(0, length(paths_tmp) - 1, 1),
+                  x = as.numeric(purrr::map_chr(paths_tmp, ~.[1])), 
+                  y = as.numeric(purrr::map_chr(paths_tmp, ~.[2]))
+            )%>% group_by(x, y) %>% 
+  mutate(ct = n(), t = seq(1, n(), 1))
+
+path_df <- trim_path_df(path_df)
+path_df %>% pull(steps) %>% max()
+
+plot_map(map, curr_pos = c(0, 0))
+
+curr_pos <- c(0, 0)
+program <- programs[[i]]
+paths <- c('0,0')
+while (i <= 2000) {
+  new_coords <- purrr::map(1:4, ~coord_adjust(curr_pos, .)) 
+  ids <- purrr::map_chr(new_coords, function(x) paste(x[1], x[2], sep = ','))
+  objs <- map[ids] 
+  options <- which(objs != "#")
+}

@@ -111,12 +111,4 @@ path_df %>% pull(steps) %>% max()
 
 plot_map(map, curr_pos = c(0, 0))
 
-curr_pos <- c(0, 0)
-program <- programs[[i]]
-paths <- c('0,0')
-while (i <= 2000) {
-  new_coords <- purrr::map(1:4, ~coord_adjust(curr_pos, .)) 
-  ids <- purrr::map_chr(new_coords, function(x) paste(x[1], x[2], sep = ','))
-  objs <- map[ids] 
-  options <- which(objs != "#")
-}
+#part 2

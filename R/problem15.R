@@ -140,6 +140,10 @@ while (i <= 2000) {
   paths[length(paths)+1] <- ids[next_mv]
   program <- res_list[[next_mv]]$program
   cat(i, '\r');i = i+1
-  if (2 %in% out) break
+  #if (2 %in% out) break
   if ((visited %>% purrr::map_dbl(~ifelse(.>1, 1, 0)) %>% sum()) >= length(visited)) break
 }
+
+plot_map(map, curr_pos = c(0, 0))
+
+plot_map(map, curr_pos = as.numeric(strsplit(paths[2001], ",")[[1]]))

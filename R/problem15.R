@@ -150,11 +150,20 @@ while (i <= 2000) {
   if ((visited %>% purrr::map_dbl(~ifelse(.>1, 1, 0)) %>% sum()) >= length(visited)) break
 }
 
-plot_map(map, curr_pos = c(-5, 8))
+plot_map(map, curr_pos = c(-9, 20))
 
 plot_map(map, curr_pos = as.numeric(strsplit(paths[2001], ",")[[1]]))
 
 
+##list unvisisted and find next point to visit
+unvisisted <- map[!names(map) %in% names(visited) & map != "#"]
+opts <- 1:length(unvisisted)
+pt_to_explor <- sample_mv(opts)
+new_id <- names(unvisisted)[[pt_to_explor]]
+##jump to the program of new id
+program <- programs[[new_id]]
+visited <- update_visited(visited, as.numeric(strsplit(new_id, ",")[[1]]))
+##map out surroundings
 res_list <- purrr::map(1:4, 
                        ~intcomputer(program = program, inputs = ., 
                                     input_pointer = 1))
@@ -163,11 +172,3 @@ new_coords <- purrr::map(1:4, ~coord_adjust(curr_pos = curr_pos, .))
 objs <- obj_detect(out)
 map <- update_map(new_coords, objs, map)
 programs <- update_programs(new_coords, res_list, programs)
-
-unvisisted <- map[!names(map) %in% names(visited) & map != "#"]
-opts <- 1:length(unvisisted)
-pt_to_explor <- sample_mv(opts)
-new_id <- names(unvisisted)[[pt_to_explor]]
-neighbor_ids <- get_neighbor_id(new_id)
-curr_pos <- as.numeric(strsplit(neighbor_ids[[1]], ",")[[1]])
-visited <- update_visited(visited, curr_pos)

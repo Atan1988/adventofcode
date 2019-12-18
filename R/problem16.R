@@ -27,6 +27,16 @@ for (i in 1:100 ){
 num[1:8]
 
 #part2 
+quick_chk <- function(num, times = 10, row = 1, pos = 1) {
+  base_pat <- c(0, 1, 0, -1)
+  n <- length(num)
+  upat <- rep(base_pat, each = row)
+  pat <- rep(upat, ceiling(n * times / length(upat)) + 1 )[2:(n * times +1)]
+  pat[(1:(n * times)) %% n == pos]
+}
+
+quick_chk(num, times = 10000, row = 1, pos = 1) %>% table()
+
 create_phase_mat_2 <- function(n, times = 10000){
   base_pat <- c(0, 1, 0, -1)
   #prog_bar <- dplyr::progress_estimated(n * times)

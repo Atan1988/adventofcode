@@ -41,4 +41,6 @@ cal_sig <- function(numf, skip, iter = 100){
 }
 
 cal_sig(numf, skip, iter = 100)
+
+
   

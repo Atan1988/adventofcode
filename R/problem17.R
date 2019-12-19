@@ -117,3 +117,52 @@ F_stps <- 1:(length(turns)-1) %>%
 paths1 <- c()
 paths1[(1:(length(turns)-1) -1)*2+1] <- paths[turns[-length(turns)]]
 paths1[(1:(length(turns)-1) -1)*2+2] <- F_stps
+
+A <- c("L", ',', '12', ',', 'R', ',', '8', ',', "L", ','
+       , '6', ',', 'R', ',', '8', ',', 'L', ',', '6', "\n")
+B <- c("R", ',', "8", ',', "L", ',', "12", ',', "L"
+       , ',', "12", ',', 'R', ',', '8', '\n')
+C <- c("L", ',', "6", ',', "R", ',', "6", ',', "L", ',', "12", '\n')
+
+main_routine <- c("A", ',', "B", ',', "A", ',', "A", ',', "B", ',',
+                  "C", ',', "B", ',', "C", ',', "C", ',', "B", "\n")
+program <- scan("data/input day17.txt",sep=",")
+program[1] <- 2 
+
+asc_main <- asc(main_routine)
+asc_A <- asc(A) %>% unlist()
+asc_B <- asc(B) %>% unlist()
+asc_C <- asc(C) %>% unlist()
+asc_video_feed <- asc(c('n', '\n'))
+
+tictoc::tic()
+res <- intcomputer(program, 
+          inputs = c(asc_main), 
+          stp = 3000000); res$done; res$i
+tictoc::toc()
+
+tictoc::tic()
+res1 <- res; res1$inputs = asc_A; res1$stp <- 3e6; 
+res1$outputs <- NULL; res1$input_pointer <- 1; res1$i <- NULL
+res1 <- do.call(intcomputer, res1); res1$done; res1$i
+tictoc::toc()
+
+tictoc::tic()
+res2 <- res1; res2$inputs = asc_B; res2$stp <- 3e6; 
+res2$outputs <- NULL; res2$input_pointer <- 1; res2$i <- NULL
+res2 <- do.call(intcomputer, res2); res2$done; res2$i
+tictoc::toc()
+
+tictoc::tic()
+res3 <- res2; res3$inputs = asc_C; res3$stp <- 3e6; 
+res3$outputs <- NULL; res3$input_pointer <- 1; res3$i <- NULL
+res3 <- do.call(intcomputer, res3); res3$done; res3$i
+tictoc::toc()
+
+tictoc::tic()
+res4 <- res3; res4$inputs = asc_video_feed; res4$stp <- 3e6; 
+res4$outputs <- NULL; res4$input_pointer <- 1; res4$i <- NULL
+res4 <- do.call(intcomputer, res4); res4$done; res4$i
+tictoc::toc()
+
+res4$outputs

@@ -92,6 +92,9 @@ calc_dist <- function(chain){
                 key = paste(sort(key), collapse = ",")))
 }
 dist_btw_intsects <- function(intsec1, intsec2, depth = 30){
+  if (intsec1 == intsec2) {
+    return(tibble(chain = intsec1, step = 0, door = "", key = ""))
+  }
   res <- intsec1; #tic(); depth = 30;
   for (i in 1:depth) {
     res <- res %>% strsplit("_") %>% 
@@ -138,22 +141,33 @@ add_doors <- function(x, y, z){
 }
 
 find_dist_btw_points <- function(loc0, loc1, depth = 30) {
+  
   close_intsec0 <- search_for_closest_intsects(loc0)
   close_intsec1 <- search_for_closest_intsects(loc1)
   
-  intsec_df0 <- get_child_int(close_intsec0)
-  intsec_df1 <- get_child_int(close_intsec1)
+  if (loc0 %in% names(intersect_map)){
+    intsec_df0 <- tibble(loc = loc0, step = 0, door = "", key = "")
+  } else {
+    intsec_df0 <- get_child_int(close_intsec0)
+  }
+
+  if (loc1 %in% names(intersect_map)) {
+    intsec_df1 <- tibble(loc = loc1, step = 0, door = "", key = "")
+  } else {
+    intsec_df1 <- get_child_int(close_intsec1)
+  }
+
   purrr::cross_df(list(intsec0 = intsec_df0$loc, intsec1 = intsec_df1$loc)) %>% 
     inner_join(intsec_df0, by = c('intsec0' = 'loc')) %>% 
     inner_join(intsec_df1, by = c('intsec1' = 'loc')) %>% 
-    filter(intsec0 != intsec1) %>% 
+    #filter(intsec0 != intsec1) %>% 
     purrrlyr::by_row(~dist_btw_intsects(.$intsec0, .$intsec1, depth = depth)) %>% 
     tidyr::unnest(cols = '.out') %>% 
     mutate(tot_step = step + step.x + step.y)  %>% 
     mutate(tot_door = add_doors(door, door.x, door.y)) %>% 
-    mutate(tot_key = add_doors(key, key.x, key.y)) %>% 
-    group_by(tot_door) %>% 
-    filter(tot_step == min(tot_step)) -> test_df
+    mutate(tot_key = add_doors(key, key.x, key.y)) -> test_df #%>% 
+    #group_by(tot_door) %>% 
+    #filter(tot_step == min(tot_step)) 
   return(test_df)
 }
 
@@ -186,22 +200,28 @@ check_route <- function(chain, keys0){
     if (i == length(mvs)){
       tmp_int <- search_for_closest_intsects(mvs[i])
       tmp_y <- tmp_int[[1]][[which(tmp_int[[1]] %>% purrr::map_lgl(~.$loc == mvs[i-1]))]]
+      tmp_y$door <- rev(tmp_y$door) 
+      tmp_y$key <- rev(tmp_y$key) %>% .[!. %in% tmp_key]
     } else {
       tmp_int <- intersect_map[[mvs[i-1]]]
-      tmp_y <- tmp_int[[1]][[which(tmp_int[[1]] %>% purrr::map_lgl(~.$loc == mvs[i]))]]
+      idx <- which(tmp_int[[1]] %>% purrr::map_lgl(~.$loc == mvs[i]))
+      if (length(idx) == 0) return(tibble(open = F))
+      tmp_y <- tmp_int[[1]][[idx]]
     }
    
-    if (!is.null(tmp_y$door)) {
-      key_required <- tolower(tmp_y$door)
-      if(!key_required %in% tmp_key) return(tibble(open = F, 
-                    key_used = paste(key_used, collapse = ","), 
-                    key_collected = paste(key_collected, collapse = ",")))
-      key_used <- c(key_used, key_required)
-    }
     if (!is.null(tmp_y$key)) {
       tmp_key <- c(tmp_key, tmp_y$key)
       key_collected <- c(key_collected, tmp_y$key)
     }
+    
+    if (!is.null(tmp_y$door)) {
+      key_required <- tolower(tmp_y$door)
+      if(sum(key_required %in% tmp_key) < length(key_required) ) return(tibble(open = F, 
+                    key_used = paste(key_used, collapse = ","), 
+                    key_collected = paste(key_collected, collapse = ",")))
+      key_used <- c(key_used, key_required)
+    }
+
   }
   return(tibble(open = T, key_used = paste(key_used, collapse = ","), 
                 key_collected = paste(key_collected, collapse = ",")))
@@ -213,6 +233,7 @@ clear_all_routes <- function(key_res){
   rounds <- list()
   i <- 1; l_chain <- 0
   while (l_chain < length(key_res$chain)){
+    #print(i)
     if (i == 1) {
       tmp_keys <- NULL
       tmp_chains <- NULL
@@ -220,35 +241,52 @@ clear_all_routes <- function(key_res){
       tmp_keys <- keys[[i-1]]
       tmp_chains <- chains[[i-1]]
     }
-    round0 <- key_res %>% 
+    round_chk <- key_res %>% 
       filter(!chain %in% tmp_chains) %>% 
       purrrlyr::by_row(
         function(row){
+          #print(row$loc1)
           check_route(row$chain, keys0 = tmp_keys)
         }
       ) %>% tidyr::unnest(cols = '.out') %>% 
       mutate(key_collected = ifelse(open, 
               paste0(key_collected, ifelse(key_collected != "", ",", ""), loc1), 
               key_collected), 
-             rounds = i) %>% 
-      filter(open) 
+             rounds = i)  
+    
+    round0 <- round_chk %>% filter(open)
     
     round0_b <- round0 %>% 
       filter(key_collected %in% trim_routes(key_collected))
     
     keys[[i]] <- c(tmp_keys, round0_b$key_collected) %>% strsplit(",") %>% 
       unlist() %>% unique() %>% sort()
-    chains[[i]] <- c(tmp_chains, round0$chain)
+    chains[[i]] <- unique(c(tmp_chains, round_chk %>% 
+                            filter(loc1 %in% keys[[i]]) %>% pull(chain)))
     rounds[[i]] <- round0_b
     l_chain <- length(chains[[i]])
-    i <- i + 1
+    i <- i + 1; if (i>80) break
   }
   return(list(keys = keys, chains = chains, rounds = rounds))
 }
 
-print_map <- function(input, start, end){
-  input[start] <- '?'; input[end] <- "!"
+print_map <- function(input, pts){
+  pts <- as.numeric(pts)
+  start <- pts[1]; end <- pts[length(pts)]
+  middle <- pts[2:(length(pts)-1)]
+  input[start] <- '?'; 
+  input[end] <-  '!'; 
+  input[middle] <- seq(0, min(9, length( middle)-1), 1)
   writeLines(1:81 %>% purrr::map_chr(~paste(input[., ], collapse = "")), 'ppp.txt')
+}
+
+min_dist <- function(curr_pos, chain){
+  chain %>% strsplit("_") %>% .[[1]] %>% 
+    purrr::map_df(function(x) find_dist_btw_points(loc0 = curr_pos, 
+                loc1 = x, depth = 30) %>% 
+                 select(tot_step) %>% mutate(pt = x)) %>% 
+    filter(tot_step == min(tot_step)) %>% 
+    mutate(chain = chain)
 }
 
 key_res <- pbapply::pblapply(letters, find_key, cl = 5) %>% bind_rows()
@@ -263,4 +301,15 @@ key_res1 <- key_res %>% filter(purrr::map2_lgl(.x = loc1,
 
 clear_res <- clear_all_routes(key_res1)
   
-rounds_df <- clear_res$rounds %>% bind_rows()
+rounds_df <- clear_res$rounds %>% bind_rows() %>% 
+  arrange(rounds, tot_step)
+
+round0_chains <- rounds_df %>% filter(rounds == 1) %>% pull(chain)
+first_chain <- round0_chains[1]
+first_chain_end <- first_chain %>% strsplit("_") %>% .[[1]] %>% .[length(.)]
+rest_chains <- round0_chains[!round0_chains %in% first_chain]
+
+rest_chains %>% pbapply::pblapply(function(x) 
+  {min_dist(first_chain_end, x)}, cl = 1) %>% 
+rest_chains %>% pbapply::pblapply(function(x) 
+  {min_dist(first_chain_end, x)}, cl = 5)

@@ -381,3 +381,5 @@ run_routes <- function(first_chain){
 tic()
 res_list <- purrr::map(round0_chains, run_routes)
 toc()
+
+###part 2

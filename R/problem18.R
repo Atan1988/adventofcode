@@ -227,6 +227,30 @@ check_route <- function(chain, keys0){
                 key_collected = paste(key_collected, collapse = ",")))
 }
 
+get_chain_length <- function(chain, start_pt = NULL){
+  mvs <- chain %>% strsplit("_") %>% .[[1]]
+  step <- 0
+  if (!is.null(start_pt)) {
+    alternate_start <- which(mvs == start_pt)
+    mvs <- mvs[alternate_start:length(mvs)]
+  }
+  for (i in 2:length(mvs) ){
+    if (i == length(mvs)){
+      tmp_int <- search_for_closest_intsects(mvs[i])
+      tmp_y <- tmp_int[[1]][[which(tmp_int[[1]] %>% purrr::map_lgl(~.$loc == mvs[i-1]))]]
+      tmp_y$door <- rev(tmp_y$door) 
+      tmp_y$key <- rev(tmp_y$key) %>% .[!. %in% tmp_key]
+    } else {
+      tmp_int <- intersect_map[[mvs[i-1]]]
+      idx <- which(tmp_int[[1]] %>% purrr::map_lgl(~.$loc == mvs[i]))
+      if (length(idx) == 0) return(tibble(open = F))
+      tmp_y <- tmp_int[[1]][[idx]]
+    }
+    step <- step + tmp_y$step
+  }
+  return(step)
+}
+
 clear_all_routes <- function(key_res){
   keys <- list(); 
   chains <- list();
@@ -280,13 +304,20 @@ print_map <- function(input, pts){
   writeLines(1:81 %>% purrr::map_chr(~paste(input[., ], collapse = "")), 'ppp.txt')
 }
 
-min_dist <- function(curr_pos, chain){
+min_dist <- function(curr_pos, chain, depth = 40){
   chain %>% strsplit("_") %>% .[[1]] %>% 
-    purrr::map_df(function(x) find_dist_btw_points(loc0 = curr_pos, 
-                loc1 = x, depth = 30) %>% 
-                 select(tot_step) %>% mutate(pt = x)) %>% 
+    purrr::map_df(function(x) {
+      #print(x)
+      find_dist_btw_points(loc0 = curr_pos, 
+                loc1 = x, depth = depth) %>% 
+                 select(tot_step) %>% mutate(pt = x)}) %>% 
     filter(tot_step == min(tot_step)) %>% 
-    mutate(chain = chain)
+    mutate(chain = chain) %>% distinct()
+}
+
+filter_keys <- function(key_rq, tmp_keys){
+  key_rq %>% strsplit(",") %>% 
+    purrr::map_lgl(function(x) sum(x %in% tmp_keys) == length(x))
 }
 
 key_res <- pbapply::pblapply(letters, find_key, cl = 5) %>% bind_rows()
@@ -305,11 +336,48 @@ rounds_df <- clear_res$rounds %>% bind_rows() %>%
   arrange(rounds, tot_step)
 
 round0_chains <- rounds_df %>% filter(rounds == 1) %>% pull(chain)
-first_chain <- round0_chains[1]
-first_chain_end <- first_chain %>% strsplit("_") %>% .[[1]] %>% .[length(.)]
-rest_chains <- round0_chains[!round0_chains %in% first_chain]
+first_chain <- round0_chains[6]
 
-rest_chains %>% pbapply::pblapply(function(x) 
-  {min_dist(first_chain_end, x)}, cl = 1) %>% 
-rest_chains %>% pbapply::pblapply(function(x) 
-  {min_dist(first_chain_end, x)}, cl = 5)
+run_routes <- function(first_chain){
+  l_chain <- 0
+  all_chains <- rounds_df %>% pull(chain)
+  tmp_chains <- c(first_chain)
+  tmp_keys <- c(rounds_df %>% filter(chain == first_chain) %>% 
+                  pull(key_collected) %>% strsplit(",") %>% unlist())
+  step <- rounds_df %>% filter(chain == first_chain) %>% pull(tot_step)
+  
+  i <- 1
+  while(l_chain < length(all_chains)){
+    chain_end <- tmp_chains[i] %>% strsplit("_") %>% .[[1]] %>% .[length(.)]
+    
+    candidate_df <- rounds_df %>% filter(!chain %in% tmp_chains) 
+    
+    if(nrow(candidate_df)> 1)  candidate_df <- candidate_df %>% 
+      filter(filter_keys(key_used, tmp_keys))
+    
+    dist_df <- candidate_df$chain %>% pbapply::pblapply(function(x) 
+    {min_dist(chain_end, x, 50)}, cl = 5) %>% bind_rows() 
+    
+    dist_df1 <- dist_df %>% 
+      inner_join(rounds_df %>% select(chain, key_used, key_collected, rounds)) %>% 
+      distinct() %>% 
+      purrrlyr::by_row(~get_chain_length(.$chain, .$pt), .to = 'chain_length') %>% 
+      tidyr::unnest(cols = 'chain_length')
+    
+    ##candidate df by filter out chains we don't have keys
+    sel_chain <- dist_df1 %>% filter(tot_step == min(tot_step)) %>% 
+      filter(chain_length == min(chain_length))
+    
+    step <- step + sel_chain$tot_step + sel_chain$chain_length
+    tmp_chains <- c(tmp_chains, sel_chain$chain)
+    tmp_keys <- c(tmp_keys, sel_chain$key_collected) %>% 
+      strsplit(",") %>% unlist() %>% unique()
+    l_chain <- length(tmp_chains)
+    i <- i+1
+  }
+  return(step)
+}
+
+tic()
+res_list <- purrr::map(round0_chains, run_routes)
+toc()

@@ -383,3 +383,43 @@ res_list <- purrr::map(round0_chains, run_routes)
 toc()
 
 ###part 2
+input_map <- readLines('data/input day18b.txt')
+
+input_map1 <- input_map %>% purrr::map(function(x){
+  1:nchar(x) %>% purrr::map_chr(~substr(x, ., .))
+}) %>% unlist() %>% 
+  matrix(ncol = 81, byrow = T)
+
+vault1 <- input_map1[1:41, 1:41]
+vault2 <- input_map1[1:41, 41:81]
+vault3 <- input_map1[41:81, 1:41]
+vault4 <- input_map1[41:81, 41:81]
+
+col <- nchar(input_map[1])
+non_wall <- which(input_map1 != '#')
+keys <- which(input_map1 %in% letters)
+doors <- which(input_map1 %in% LETTERS)
+
+tree_structure <- non_wall %>% purrr::map(
+  function(x){
+    child_loc = x + c(-1, 1, -col, col)
+    names(child_loc) <- c('-1', '1', -col, col)
+    child_val <- input_map1[child_loc]
+    list(
+      child_loc = child_loc[child_loc %in% non_wall], 
+      child_val = child_val[child_loc %in% non_wall], 
+      val = input_map1[x], 
+      loc = x
+    )
+  }
+)
+names(tree_structure) <- non_wall
+intersections <- tree_structure %>% 
+  purrr::map(function(x){
+    num_dir <- length(unique(as.numeric(names(x$child_loc))))
+    return(num_dir)
+  }) %>% unlist()
+
+intersects_3or4 <- intersections[intersections>2]
+
+at_locs <- which(input_map1 == '@')

@@ -34,10 +34,6 @@ intersections <- tree_structure %>%
 
 intersects_3or4 <- intersections[intersections>2]
 
-at_pos <- which(input_map1 == '@')
-at_pos
-tree_structure[[as.character(which(input_map1 == 'a'))]]
-
 closest_intsect <- function(y, dir, cap = 1000) {
   i <- 0; orig <- y;
   door <- NULL; key <- NULL
@@ -172,6 +168,7 @@ find_dist_btw_points <- function(loc0, loc1, depth = 30) {
 }
 
 find_key <- function(key){
+  print(key)
   loc0 <- as.character(which(input_map1 == '@'))
   loc1 <- as.character(which(input_map1 == key))
   
@@ -320,24 +317,6 @@ filter_keys <- function(key_rq, tmp_keys){
     purrr::map_lgl(function(x) sum(x %in% tmp_keys) == length(x))
 }
 
-key_res <- pbapply::pblapply(letters, find_key, cl = 5) %>% bind_rows()
-
-key_res <- key_res %>% 
-  mutate(chain = gsub(paste0(3281 + c(1, -1, 81, -81), "_") %>% 
-                        paste(collapse = "|"), "", chain)) %>% 
-  distinct()
-
-key_res1 <- key_res %>% filter(purrr::map2_lgl(.x = loc1, 
-            .y = tot_key, function(x,y) !grepl(x, y)))
-
-clear_res <- clear_all_routes(key_res1)
-  
-rounds_df <- clear_res$rounds %>% bind_rows() %>% 
-  arrange(rounds, tot_step)
-
-round0_chains <- rounds_df %>% filter(rounds == 1) %>% pull(chain)
-first_chain <- round0_chains[6]
-
 run_routes <- function(first_chain){
   l_chain <- 0
   all_chains <- rounds_df %>% pull(chain)
@@ -378,17 +357,57 @@ run_routes <- function(first_chain){
   return(step)
 }
 
+key_res <- pbapply::pblapply(letters, find_key, cl = 5) %>% bind_rows()
+
+key_res <- key_res %>% 
+  mutate(chain = gsub(paste0(3281 + c(0, 1, -1, 81, -81), "_") %>% 
+                        paste(collapse = "|"), "", chain)) %>% 
+  distinct()
+
+key_res1 <- key_res %>% filter(purrr::map2_lgl(.x = loc1, 
+            .y = tot_key, function(x,y) !grepl(x, y)))
+
+clear_res <- clear_all_routes(key_res1)
+  
+rounds_df <- clear_res$rounds %>% bind_rows() %>% 
+  arrange(rounds, tot_step)
+
+round0_chains <- rounds_df %>% filter(rounds == 1) %>% pull(chain)
+first_chain <- round0_chains[6]
+
+library(tictoc)
 tic()
 res_list <- purrr::map(round0_chains, run_routes)
 toc()
 
 ###part 2
-input_map <- readLines('data/input day18b.txt')
+input_mapb <- readLines('data/input day18b.txt')
 
-input_map1 <- input_map %>% purrr::map(function(x){
+input_mapb1 <- input_mapb %>% purrr::map(function(x){
   1:nchar(x) %>% purrr::map_chr(~substr(x, ., .))
 }) %>% unlist() %>% 
   matrix(ncol = 81, byrow = T)
+
+get_row_col <- function(df) {
+  df %>% 
+    mutate(
+      cols = num %/% 81 + 1,
+      rows = num %% 81,
+      quad = case_when(
+        rows <= 41 & cols <= 41 ~ '1', 
+        rows <= 41 & cols >= 41 ~ '2', 
+        rows >= 41 & cols <= 41 ~ '3', 
+        rows >= 41 & cols >= 41 ~ '4'
+      )
+    )
+}
+
+rounds_df1 <- rounds_df %>% 
+  mutate(  num = chain %>% strsplit("_") %>% 
+             purrr::map_chr(~.[2]) %>% as.numeric()) %>% get_row_col()
+
+start <- tibble::tibble(num = which(input_mapb1 == "@")) %>% get_row_col()
+
 
 vault1 <- input_map1[1:41, 1:41]
 vault2 <- input_map1[1:41, 41:81]
